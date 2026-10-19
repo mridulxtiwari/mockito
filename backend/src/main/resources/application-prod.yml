@@ -45,3 +45,14 @@ logging:
     com.mocktest: INFO
     org.springframework.web: WARN
     org.hibernate: WARN
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
