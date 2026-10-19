@@ -91,10 +91,18 @@ Using the included Maven wrapper:
   ```
 
 The server starts at `http://localhost:8080`.
-- **H2 In-Memory Database Console**: `http://localhost:8080/h2-console`
-  - JDBC URL: `jdbc:h2:mem:mocktestdb`
-  - Username: `sa`
-  - Password: *(leave blank)*
+
+#### Database Options:
+- **Default (H2 in-memory, zero-setup)**:
+  - Just run `.\mvnw.cmd spring-boot:run`
+  - H2 Web Console: `http://localhost:8080/h2-console` (JDBC URL: `jdbc:h2:mem:mocktestdb`, Username: `sa`)
+- **PostgreSQL**:
+  - Create database: `CREATE DATABASE mocktestdb;`
+  - Run with postgres profile:
+    ```powershell
+    .\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=postgres
+    ```
+    *(Configure credentials in `application-postgres.yml` or via `DB_PASSWORD` environment variable)*
 
 > **Note**: On startup, sample mock tests for **Java & Spring Boot**, **React & Frontend**, and **Databases & SQL** are automatically seeded!
 
