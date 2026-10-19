@@ -2,8 +2,8 @@ package com.mocktest.controller;
 
 import com.mocktest.dto.request.SubmitExamRequest;
 import com.mocktest.dto.response.ApiResponse;
+import com.mocktest.dto.response.AttemptHistoryResponse;
 import com.mocktest.dto.response.ExamResultResponse;
-import com.mocktest.entity.TestAttempt;
 import com.mocktest.service.ExamEvaluationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,8 +34,8 @@ public class AttemptController {
     }
 
     @GetMapping("/history")
-    public ResponseEntity<ApiResponse<List<TestAttempt>>> getAttemptHistory() {
-        List<TestAttempt> attempts = evaluationService.getAllAttempts();
+    public ResponseEntity<ApiResponse<List<AttemptHistoryResponse>>> getAttemptHistory() {
+        List<AttemptHistoryResponse> attempts = evaluationService.getAllAttempts();
         return ResponseEntity.ok(ApiResponse.ok(attempts));
     }
 }

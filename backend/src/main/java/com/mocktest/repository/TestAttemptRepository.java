@@ -14,6 +14,9 @@ public interface TestAttemptRepository extends JpaRepository<TestAttempt, Long> 
     List<TestAttempt> findByTestIdOrderBySubmittedAtDesc(Long testId);
     List<TestAttempt> findAllByOrderBySubmittedAtDesc();
 
+    @Query("SELECT a FROM TestAttempt a JOIN FETCH a.test t LEFT JOIN FETCH t.category ORDER BY a.submittedAt DESC")
+    List<TestAttempt> findAllWithTestAndCategoryOrderBySubmittedAtDesc();
+
     @Query("SELECT DISTINCT a FROM TestAttempt a LEFT JOIN FETCH a.answers WHERE a.id = :id")
     Optional<TestAttempt> findByIdWithAnswers(@Param("id") Long id);
 }

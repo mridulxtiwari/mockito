@@ -45,7 +45,7 @@ export default function HistoryModal({ onClose, onViewAttempt }) {
               >
                 <div>
                   <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#fff', marginBottom: '4px' }}>
-                    {att.test?.title || 'Mock Test'}
+                    {att.testTitle || att.test?.title || 'Mock Test'}
                   </div>
                   <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
                     Candidate: <strong style={{ color: '#cbd5e1' }}>{att.candidateName}</strong> • {new Date(att.submittedAt).toLocaleDateString()}

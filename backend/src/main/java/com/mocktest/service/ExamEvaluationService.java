@@ -248,7 +248,26 @@ public class ExamEvaluationService {
     }
 
     @Transactional(readOnly = true)
-    public List<TestAttempt> getAllAttempts() {
-        return attemptRepository.findAllByOrderBySubmittedAtDesc();
+    public List<com.mocktest.dto.response.AttemptHistoryResponse> getAllAttempts() {
+        return attemptRepository.findAllWithTestAndCategoryOrderBySubmittedAtDesc().stream()
+                .map(att -> new com.mocktest.dto.response.AttemptHistoryResponse(
+                        att.getId(),
+                        att.getTest() != null ? att.getTest().getId() : null,
+                        att.getTest() != null ? att.getTest().getTitle() : "Mock Test",
+                        (att.getTest() != null && att.getTest().getCategory() != null) ? att.getTest().getCategory().getName() : "General",
+                        att.getCandidateName(),
+                        att.getCandidateEmail(),
+                        att.getScore(),
+                        att.getPercentage(),
+                        att.getPassed(),
+                        att.getTotalQuestions(),
+                        att.getCorrectAnswers(),
+                        att.getWrongAnswers(),
+                        att.getUnattempted(),
+                        att.getTimeTakenSeconds(),
+                        att.getStatus(),
+                        att.getSubmittedAt()
+                ))
+                .toList();
     }
 }
