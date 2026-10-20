@@ -9,7 +9,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class CorsConfig {
 
-    @Value("${cors.allowed-origins:http://localhost:*,http://127.0.0.1:*,https://*.vercel.app,https://*.onrender.com,https://*.netlify.app}")
+    @Value("${cors.allowed-origins:http://localhost:*,http://127.0.0.1:*,https://*.vercel.app}")
     private String[] allowedOrigins;
 
     @Bean
@@ -20,8 +20,9 @@ public class CorsConfig {
                 registry.addMapping("/api/**")
                         .allowedOriginPatterns(allowedOrigins)
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                        .allowedHeaders("*")
-                        .allowCredentials(true);
+                        .allowedHeaders("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With")
+                        .allowCredentials(true)
+                        .maxAge(3600);
 
                 registry.addMapping("/actuator/**")
                         .allowedOriginPatterns(allowedOrigins)
