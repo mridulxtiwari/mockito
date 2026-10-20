@@ -47,12 +47,26 @@ public class DataLoader implements CommandLineRunner {
                 .icon("🗄️")
                 .build();
 
-        categoryRepository.saveAll(List.of(javaCategory, reactCategory, dbCategory));
+        Category jeeCategory = Category.builder()
+                .name("JEE Mains")
+                .description("Physics, Chemistry, and Mathematics practice problems and mock tests for JEE Main aspirants.")
+                .icon("🎯")
+                .build();
+
+        Category mhcetCategory = Category.builder()
+                .name("MHCET")
+                .description("Maharashtra Common Entrance Test mock exams covering Physics, Chemistry, and Mathematics.")
+                .icon("📐")
+                .build();
+
+        categoryRepository.saveAll(List.of(javaCategory, reactCategory, dbCategory, jeeCategory, mhcetCategory));
 
         // 2. Tests & Questions
         seedJavaTest(javaCategory);
         seedReactTest(reactCategory);
         seedDatabaseTest(dbCategory);
+        seedJeeMainTest(jeeCategory);
+        seedMhcetTest(mhcetCategory);
 
         log.info("Mock test data seeded successfully!");
     }
@@ -330,6 +344,172 @@ public class DataLoader implements CommandLineRunner {
                         new OptionData("B", "TRUNCATE TABLE table", true),
                         new OptionData("C", "DROP TABLE table", false),
                         new OptionData("D", "CLEAR TABLE table", false)
+                )
+        );
+
+        testRepository.save(test);
+    }
+
+    private void seedJeeMainTest(Category category) {
+        MockTest test = MockTest.builder()
+                .category(category)
+                .title("JEE Mains - PCM Speed & Accuracy Mock Test")
+                .description("Timed mock test covering Physics, Chemistry, and Mathematics fundamentals based on recent JEE Main patterns.")
+                .durationMinutes(15)
+                .totalMarks(6)
+                .passingMarks(4)
+                .negativeMarks(0.25)
+                .difficulty("HARD")
+                .isActive(true)
+                .questions(new ArrayList<>())
+                .build();
+
+        addQuestion(test,
+                "What is the dimensional formula of Planck's constant (h)?",
+                "From E = h * ν, [h] = [E] / [ν] = [M L^2 T^-2] / [T^-1] = [M L^2 T^-1].",
+                1, 1,
+                List.of(
+                        new OptionData("A", "[M L^2 T^-1]", true),
+                        new OptionData("B", "[M L^2 T^-2]", false),
+                        new OptionData("C", "[M L T^-1]", false),
+                        new OptionData("D", "[M L^0 T^-1]", false)
+                )
+        );
+
+        addQuestion(test,
+                "What is the value of lim(x -> 0) [sin(3x) / x]?",
+                "lim(x -> 0) [sin(3x) / x] = 3 * lim(x -> 0) [sin(3x) / (3x)] = 3 * 1 = 3.",
+                1, 2,
+                List.of(
+                        new OptionData("A", "0", false),
+                        new OptionData("B", "1", false),
+                        new OptionData("C", "3", true),
+                        new OptionData("D", "Does not exist", false)
+                )
+        );
+
+        addQuestion(test,
+                "Which of the following organic compounds possesses an asymmetric (chiral) carbon and exhibits optical isomerism?",
+                "2-Chlorobutane has a central carbon bonded to -H, -Cl, -CH3, and -C2H5 (four distinct groups), making it chiral.",
+                1, 3,
+                List.of(
+                        new OptionData("A", "1-Chlorobutane", false),
+                        new OptionData("B", "2-Chlorobutane", true),
+                        new OptionData("C", "2-Chloropropane", false),
+                        new OptionData("D", "Chloromethane", false)
+                )
+        );
+
+        addQuestion(test,
+                "At what angle of projection with the horizontal is the range of a projectile maximum on a flat plane?",
+                "Horizontal range R = (u^2 * sin(2θ)) / g. The range is maximized when sin(2θ) = 1, which gives 2θ = 90°, so θ = 45°.",
+                1, 4,
+                List.of(
+                        new OptionData("A", "30°", false),
+                        new OptionData("B", "45°", true),
+                        new OptionData("C", "60°", false),
+                        new OptionData("D", "90°", false)
+                )
+        );
+
+        addQuestion(test,
+                "What is the hybridization and molecular geometry of ethyne (C2H2)?",
+                "In ethyne (HC≡CH), each carbon forms one C-H single bond and one C≡C triple bond, corresponding to sp hybridization with linear geometry (180°).",
+                1, 5,
+                List.of(
+                        new OptionData("A", "sp3 and tetrahedral", false),
+                        new OptionData("B", "sp2 and trigonal planar", false),
+                        new OptionData("C", "sp and linear", true),
+                        new OptionData("D", "dsp2 and square planar", false)
+                )
+        );
+
+        addQuestion(test,
+                "If A and B are square matrices of the same order such that AB = BA, what property do they satisfy?",
+                "When AB = BA, the two matrices are said to commute under multiplication.",
+                1, 6,
+                List.of(
+                        new OptionData("A", "They commute under matrix multiplication", true),
+                        new OptionData("B", "Both must be identity matrices", false),
+                        new OptionData("C", "Their determinants must be zero", false),
+                        new OptionData("D", "A is the inverse of B", false)
+                )
+        );
+
+        testRepository.save(test);
+    }
+
+    private void seedMhcetTest(Category category) {
+        MockTest test = MockTest.builder()
+                .category(category)
+                .title("MHCET - Engineering & Pharmacy Entrance Test")
+                .description("Practice key Physics, Chemistry, and Mathematics questions tailored for the Maharashtra Common Entrance Test.")
+                .durationMinutes(10)
+                .totalMarks(5)
+                .passingMarks(3)
+                .negativeMarks(0.0)
+                .difficulty("MEDIUM")
+                .isActive(true)
+                .questions(new ArrayList<>())
+                .build();
+
+        addQuestion(test,
+                "What is the moment of inertia of a uniform circular disc of mass M and radius R about its transverse central axis?",
+                "The moment of inertia of a uniform circular disc perpendicular to its plane and passing through its center is I = (1/2) * M * R^2.",
+                1, 1,
+                List.of(
+                        new OptionData("A", "M * R^2", false),
+                        new OptionData("B", "(1/2) * M * R^2", true),
+                        new OptionData("C", "(1/4) * M * R^2", false),
+                        new OptionData("D", "(2/5) * M * R^2", false)
+                )
+        );
+
+        addQuestion(test,
+                "What is the derivative of f(x) = e^(2x) * cos(x) with respect to x?",
+                "Applying the product rule: d/dx[e^(2x) cos(x)] = 2 * e^(2x) * cos(x) - e^(2x) * sin(x) = e^(2x) * (2 cos(x) - sin(x)).",
+                1, 2,
+                List.of(
+                        new OptionData("A", "e^(2x) * (2 cos(x) - sin(x))", true),
+                        new OptionData("B", "e^(2x) * (cos(x) - sin(x))", false),
+                        new OptionData("C", "2 * e^(2x) * cos(x)", false),
+                        new OptionData("D", "-e^(2x) * sin(x)", false)
+                )
+        );
+
+        addQuestion(test,
+                "Which law states that at constant temperature, the solubility of a gas in a liquid is directly proportional to its partial pressure?",
+                "Henry's law states that S = K_H * P, establishing the direct proportionality between gas solubility and partial pressure.",
+                1, 3,
+                List.of(
+                        new OptionData("A", "Raoult's Law", false),
+                        new OptionData("B", "Henry's Law", true),
+                        new OptionData("C", "Boyle's Law", false),
+                        new OptionData("D", "Dalton's Law", false)
+                )
+        );
+
+        addQuestion(test,
+                "In a step-up transformer, if the secondary turn count (Ns) exceeds the primary turn count (Np), how do secondary voltage (Vs) and current (Is) compare?",
+                "In a step-up transformer, Vs / Vp = Ns / Np. When Ns > Np, voltage is stepped up (Vs > Vp) and current is stepped down (Is < Ip).",
+                1, 4,
+                List.of(
+                        new OptionData("A", "Vs > Vp and Is < Ip", true),
+                        new OptionData("B", "Vs < Vp and Is > Ip", false),
+                        new OptionData("C", "Vs > Vp and Is > Ip", false),
+                        new OptionData("D", "Vs < Vp and Is < Ip", false)
+                )
+        );
+
+        addQuestion(test,
+                "What is the value of the definite integral ∫[0 to π/2] cos(x) dx?",
+                "The antiderivative of cos(x) is sin(x). Evaluated between 0 and π/2: sin(π/2) - sin(0) = 1 - 0 = 1.",
+                1, 5,
+                List.of(
+                        new OptionData("A", "0", false),
+                        new OptionData("B", "1", true),
+                        new OptionData("C", "-1", false),
+                        new OptionData("D", "π / 2", false)
                 )
         );
 
