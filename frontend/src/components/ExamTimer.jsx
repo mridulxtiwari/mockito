@@ -1,9 +1,14 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 export default function ExamTimer({ secondsLeft, onTick, onExpire }) {
+  const expiredRef = useRef(false);
+
   useEffect(() => {
     if (secondsLeft <= 0) {
-      onExpire();
+      if (!expiredRef.current) {
+        expiredRef.current = true;
+        onExpire();
+      }
       return;
     }
 

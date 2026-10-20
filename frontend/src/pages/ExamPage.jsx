@@ -90,10 +90,13 @@ export default function ExamPage({ testId, onFinishExam, onCancelExam }) {
     setSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
   }, []);
 
+  const isSubmittingRef = useRef(false);
+
   // 4. Submit submission logic
   const executeSubmit = useCallback(
     async (timedOut = false) => {
-      if (isSubmitting || !examPaper) return;
+      if (isSubmittingRef.current || !examPaper) return;
+      isSubmittingRef.current = true;
       setIsSubmitting(true);
 
       const timeTaken = initialDurationRef.current - secondsLeft;
@@ -113,10 +116,11 @@ export default function ExamPage({ testId, onFinishExam, onCancelExam }) {
         onFinishExam(result);
       } catch (err) {
         alert('Submission failed: ' + err.message);
+        isSubmittingRef.current = false;
         setIsSubmitting(false);
       }
     },
-    [isSubmitting, examPaper, secondsLeft, candidateName, answers, storageKey, onFinishExam]
+    [examPaper, secondsLeft, candidateName, answers, storageKey, onFinishExam]
   );
 
   // 5. Timer expired handler

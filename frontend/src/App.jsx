@@ -19,14 +19,19 @@ export default function App() {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   // Load categories on start
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const data = await testApi.getCategories();
       setCategories(data || []);
     } catch (err) {
       console.error('Failed to load categories', err);
     }
-  };
+  }, []);
+
+  // Fetch categories once on mount
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
 
   // Helper to sync view changes with browser history
   const navigateTo = useCallback((view, extraState = {}, replace = false) => {
@@ -44,10 +49,8 @@ export default function App() {
     }
   }, []);
 
-  // Listen to browser Back / Forward buttons and initialize route
+  // Listen to browser Back / Forward buttons and initialize route once on mount
   useEffect(() => {
-    fetchCategories();
-
     // Check initial hash route or cached state
     const hash = window.location.hash;
     if (hash.startsWith('#/exam')) {
@@ -83,7 +86,7 @@ export default function App() {
         if (state.testId) {
           setSelectedTestId(state.testId);
         }
-        if (state.view === 'result' && !examResult) {
+        if (state.view === 'result') {
           try {
             const cached = sessionStorage.getItem('last_exam_result');
             if (cached) setExamResult(JSON.parse(cached));
@@ -97,7 +100,7 @@ export default function App() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [navigateTo, examResult]);
+  }, [navigateTo]);
 
   // Handlers
   const handleStartTest = (testId) => {
