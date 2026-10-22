@@ -3,13 +3,18 @@ import Navbar from './components/Navbar';
 import HomePage from './pages/HomePage';
 import ExamPage from './pages/ExamPage';
 import ResultPage from './pages/ResultPage';
+import AdminPage from './pages/AdminPage';
 import CreateTestModal from './components/CreateTestModal';
 import HistoryModal from './components/HistoryModal';
+import AuthModal from './components/AuthModal';
 import ErrorBoundary from './components/ErrorBoundary';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { testApi } from './api/testApi';
 
-export default function App() {
-  const [currentView, setCurrentView] = useState('home'); // 'home' | 'exam' | 'result'
+function AppContent() {
+  const { user, isAdmin, loading: authLoading } = useAuth();
+  const [currentView, setCurrentView] = useState('home'); // 'home' | 'admin' | 'exam' | 'result'
+  const [adminActiveTab, setAdminActiveTab] = useState('overview');
   const [selectedTestId, setSelectedTestId] = useState(null);
   const [examResult, setExamResult] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -17,6 +22,7 @@ export default function App() {
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Load categories on start
   const fetchCategories = useCallback(async () => {
@@ -36,10 +42,16 @@ export default function App() {
   // Helper to sync view changes with browser history
   const navigateTo = useCallback((view, extraState = {}, replace = false) => {
     setCurrentView(view);
-    const hash =
-      view === 'home'
-        ? '#/'
-        : `#/${view}${extraState.testId ? `?testId=${extraState.testId}` : ''}`;
+    if (extraState.tab) {
+      setAdminActiveTab(extraState.tab);
+    }
+
+    let hash = '#/';
+    if (view === 'admin') {
+      hash = extraState.tab ? `#/admin?tab=${extraState.tab}` : '#/admin';
+    } else if (view !== 'home') {
+      hash = `#/${view}${extraState.testId ? `?testId=${extraState.testId}` : ''}`;
+    }
 
     const state = { view, ...extraState };
     if (replace) {
@@ -49,9 +61,22 @@ export default function App() {
     }
   }, []);
 
+  // Default admin directly to admin view (admin does not require student browse view)
+  useEffect(() => {
+    if (!authLoading && isAdmin && currentView === 'home' && !window.location.hash.startsWith('#/exam') && !window.location.hash.startsWith('#/result')) {
+      navigateTo('admin', { tab: 'overview' }, true);
+    }
+  }, [isAdmin, authLoading, currentView, navigateTo]);
+
+  // Guard admin view: bounce non-admin and unauthenticated users away from admin view to student home
+  useEffect(() => {
+    if (!authLoading && !isAdmin && currentView === 'admin') {
+      navigateTo('home', {}, true);
+    }
+  }, [isAdmin, authLoading, currentView, navigateTo]);
+
   // Listen to browser Back / Forward buttons and initialize route once on mount
   useEffect(() => {
-    // Check initial hash route or cached state
     const hash = window.location.hash;
     if (hash.startsWith('#/exam')) {
       const params = new URLSearchParams(hash.split('?')[1] || '');
@@ -74,15 +99,30 @@ export default function App() {
       } catch {
         navigateTo('home', {}, true);
       }
+    } else if (hash.startsWith('#/admin')) {
+      const params = new URLSearchParams(hash.split('?')[1] || '');
+      const tab = params.get('tab') || 'overview';
+      if (isAdmin) {
+        setAdminActiveTab(tab);
+        setCurrentView('admin');
+      } else {
+        navigateTo('home', {}, true);
+      }
     } else {
       navigateTo('home', {}, true);
     }
 
-    // Handle browser Back / Forward navigation
     const handlePopState = (event) => {
-      const state = event.state;
+      const state = event?.state;
       if (state && state.view) {
+        if (state.view === 'admin' && !isAdmin) {
+          navigateTo('home', {}, true);
+          return;
+        }
         setCurrentView(state.view);
+        if (state.tab) {
+          setAdminActiveTab(state.tab);
+        }
         if (state.testId) {
           setSelectedTestId(state.testId);
         }
@@ -93,14 +133,29 @@ export default function App() {
           } catch {}
         }
       } else {
-        // Fallback safely to home if no state
-        setCurrentView('home');
+        const hashNow = window.location.hash;
+        if (hashNow.startsWith('#/admin')) {
+          if (isAdmin) {
+            const params = new URLSearchParams(hashNow.split('?')[1] || '');
+            const tab = params.get('tab') || 'overview';
+            setAdminActiveTab(tab);
+            setCurrentView('admin');
+          } else {
+            navigateTo('home', {}, true);
+          }
+        } else {
+          setCurrentView('home');
+        }
       }
     };
 
     window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [navigateTo]);
+    window.addEventListener('hashchange', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handlePopState);
+    };
+  }, [navigateTo, isAdmin]);
 
   // Handlers
   const handleStartTest = (testId) => {
@@ -146,62 +201,100 @@ export default function App() {
   };
 
   return (
-    <ErrorBoundary>
-      <div className="app-container">
-        <Navbar
-          currentView={currentView}
-          onNavigate={(view) => {
-            if (currentView === 'exam') {
-              if (!window.confirm('Leave test? Progress is saved in your browser.')) return;
-            }
-            navigateTo(view);
-          }}
-          onOpenCreate={() => setShowCreateModal(true)}
-          onOpenHistory={() => setShowHistoryModal(true)}
-        />
+    <div className="app-container">
+      <Navbar
+        currentView={currentView}
+        adminActiveTab={adminActiveTab}
+        onNavigate={(view, extraState = {}) => {
+          if (currentView === 'exam') {
+            if (!window.confirm('Leave test? Progress is saved in your browser.')) return;
+          }
+          navigateTo(view, extraState);
+        }}
+        onOpenCreate={() => setShowCreateModal(true)}
+        onOpenHistory={() => setShowHistoryModal(true)}
+        onOpenAuth={() => setShowAuthModal(true)}
+      />
 
-        <main>
-          {currentView === 'exam' && selectedTestId ? (
-            <ExamPage
-              testId={selectedTestId}
-              onFinishExam={handleFinishExam}
-              onCancelExam={handleBackToHome}
-            />
-          ) : currentView === 'result' && examResult ? (
-            <ResultPage
-              result={examResult}
-              onRetake={handleRetakeTest}
-              onBackToHome={handleBackToHome}
-            />
-          ) : (
-            <HomePage
-              categories={categories}
-              onStartTest={handleStartTest}
-              onRefreshCategories={fetchCategories}
-            />
-          )}
-        </main>
-
-        {/* Create Test Modal */}
-        {showCreateModal && (
-          <CreateTestModal
-            categories={categories}
-            onClose={() => setShowCreateModal(false)}
-            onCreated={() => {
-              fetchCategories();
-              alert('🎉 Mock test created successfully!');
-            }}
+      <main>
+        {currentView === 'exam' && selectedTestId ? (
+          <ExamPage
+            testId={selectedTestId}
+            onFinishExam={handleFinishExam}
+            onCancelExam={handleBackToHome}
           />
-        )}
-
-        {/* History Modal */}
-        {showHistoryModal && (
-          <HistoryModal
-            onClose={() => setShowHistoryModal(false)}
+        ) : currentView === 'result' && examResult ? (
+          <ResultPage
+            result={examResult}
+            onRetake={handleRetakeTest}
+            onBackToHome={handleBackToHome}
+          />
+        ) : (currentView === 'admin' && isAdmin) ? (
+          <AdminPage
+            categories={categories}
+            initialTab={adminActiveTab}
+            onTabChange={(tab) => navigateTo('admin', { tab })}
+            onStartTest={handleStartTest}
+            onRefreshCategories={fetchCategories}
             onViewAttempt={handleViewAttemptFromHistory}
           />
+        ) : (
+          <HomePage
+            categories={categories}
+            onStartTest={handleStartTest}
+            onRefreshCategories={fetchCategories}
+            onOpenAuth={() => setShowAuthModal(true)}
+            onOpenCreate={() => setShowCreateModal(true)}
+            onNavigateAdmin={() => navigateTo('admin')}
+          />
         )}
-      </div>
+      </main>
+
+      {/* Create Test Modal (Admin Only) */}
+      {showCreateModal && (
+        <CreateTestModal
+          categories={categories}
+          onClose={() => setShowCreateModal(false)}
+          onCreated={() => {
+            fetchCategories();
+            alert('🎉 Mock test created successfully!');
+          }}
+        />
+      )}
+
+      {/* History Modal */}
+      {showHistoryModal && (
+        <HistoryModal
+          onClose={() => setShowHistoryModal(false)}
+          onViewAttempt={handleViewAttemptFromHistory}
+        />
+      )}
+
+      {/* Auth Modal (Login / Register) */}
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={(authUser) => {
+            fetchCategories();
+            const userIsAdmin = authUser?.role === 'ROLE_ADMIN' || authUser?.role === 'ADMIN';
+            if (userIsAdmin) {
+              navigateTo('admin', { tab: 'overview' }, true);
+            } else {
+              navigateTo('home', {}, true);
+            }
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

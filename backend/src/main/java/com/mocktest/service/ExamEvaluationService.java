@@ -1,6 +1,7 @@
 package com.mocktest.service;
 
 import com.mocktest.dto.request.SubmitExamRequest;
+import com.mocktest.dto.response.AttemptHistoryResponse;
 import com.mocktest.dto.response.ExamResultResponse;
 import com.mocktest.dto.response.OptionReviewDto;
 import com.mocktest.dto.response.QuestionReviewDto;
@@ -10,6 +11,9 @@ import com.mocktest.repository.MockTestRepository;
 import com.mocktest.repository.QuestionRepository;
 import com.mocktest.repository.TestAttemptRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +32,8 @@ public class ExamEvaluationService {
     public ExamResultResponse evaluateAndSubmit(SubmitExamRequest request) {
         MockTest test = testRepository.findByIdWithCategory(request.testId())
                 .orElseThrow(() -> new ResourceNotFoundException("Test not found with id: " + request.testId()));
+
+        User currentUser = getCurrentAuthenticatedUser();
 
         List<Question> questions = questionRepository.findByTestIdWithOptions(request.testId());
 
@@ -88,7 +94,6 @@ public class ExamEvaluationService {
             ));
         }
 
-        // Prevent negative total scores
         if (totalScore < 0.0) {
             totalScore = 0.0;
         }
@@ -106,12 +111,17 @@ public class ExamEvaluationService {
 
         String candidateName = (request.candidateName() != null && !request.candidateName().isBlank())
                 ? request.candidateName()
-                : "Guest Candidate";
+                : (currentUser != null ? currentUser.getFullName() : "Candidate");
+
+        String candidateEmail = (request.candidateEmail() != null && !request.candidateEmail().isBlank())
+                ? request.candidateEmail()
+                : (currentUser != null ? currentUser.getEmail() : null);
 
         TestAttempt attempt = TestAttempt.builder()
                 .test(test)
+                .user(currentUser)
                 .candidateName(candidateName)
-                .candidateEmail(request.candidateEmail())
+                .candidateEmail(candidateEmail)
                 .score(totalScore)
                 .percentage(percentage)
                 .passed(passed)
@@ -168,6 +178,14 @@ public class ExamEvaluationService {
     public ExamResultResponse getAttemptResult(Long attemptId) {
         TestAttempt attempt = attemptRepository.findByIdWithAnswers(attemptId)
                 .orElseThrow(() -> new ResourceNotFoundException("Attempt not found with id: " + attemptId));
+
+        User currentUser = getCurrentAuthenticatedUser();
+        if (currentUser != null && currentUser.getRole() != Role.ROLE_ADMIN) {
+            // Check if user owns this attempt
+            if (attempt.getUser() != null && !attempt.getUser().getId().equals(currentUser.getId())) {
+                throw new AccessDeniedException("Access denied: You are not authorized to view this attempt result");
+            }
+        }
 
         MockTest test = testRepository.findByIdWithCategory(attempt.getTest().getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Test not found with id: " + attempt.getTest().getId()));
@@ -248,9 +266,20 @@ public class ExamEvaluationService {
     }
 
     @Transactional(readOnly = true)
-    public List<com.mocktest.dto.response.AttemptHistoryResponse> getAllAttempts() {
-        return attemptRepository.findAllWithTestAndCategoryOrderBySubmittedAtDesc().stream()
-                .map(att -> new com.mocktest.dto.response.AttemptHistoryResponse(
+    public List<AttemptHistoryResponse> getAllAttempts() {
+        User currentUser = getCurrentAuthenticatedUser();
+
+        List<TestAttempt> attempts;
+        if (currentUser != null && currentUser.getRole() == Role.ROLE_ADMIN) {
+            attempts = attemptRepository.findAllWithTestAndCategoryOrderBySubmittedAtDesc();
+        } else if (currentUser != null) {
+            attempts = attemptRepository.findByUserIdWithTestAndCategoryOrderBySubmittedAtDesc(currentUser.getId());
+        } else {
+            return Collections.emptyList();
+        }
+
+        return attempts.stream()
+                .map(att -> new AttemptHistoryResponse(
                         att.getId(),
                         att.getTest() != null ? att.getTest().getId() : null,
                         att.getTest() != null ? att.getTest().getTitle() : "Mock Test",
@@ -269,5 +298,13 @@ public class ExamEvaluationService {
                         att.getSubmittedAt()
                 ))
                 .toList();
+    }
+
+    private User getCurrentAuthenticatedUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof User user) {
+            return user;
+        }
+        return null;
     }
 }

@@ -18,57 +18,110 @@ public class DataLoader implements CommandLineRunner {
 
     private final CategoryRepository categoryRepository;
     private final MockTestRepository testRepository;
+    private final com.mocktest.repository.UserRepository userRepository;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     @Override
     public void run(String... args) {
-        if (categoryRepository.count() > 0) {
-            log.info("Database already seeded. Skipping initial data load.");
-            return;
+        Category javaCategory;
+        Category reactCategory;
+        Category dbCategory;
+        Category jeeCategory;
+        Category mhcetCategory;
+
+        if (categoryRepository.count() == 0) {
+            log.info("Seeding initial mock test data...");
+
+            // 1. Categories
+            javaCategory = Category.builder()
+                    .name("Java & Spring Boot")
+                    .description("Core Java, concurrency, Spring Framework, Spring Boot 3, and microservices architecture.")
+                    .icon("☕")
+                    .build();
+
+            reactCategory = Category.builder()
+                    .name("React & Frontend")
+                    .description("Modern React, hooks, state patterns, JavaScript ES6+, and responsive UI development.")
+                    .icon("⚛️")
+                    .build();
+
+            dbCategory = Category.builder()
+                    .name("Databases & SQL")
+                    .description("Relational data modeling, indexing, SQL queries, transactions, and ACID principles.")
+                    .icon("🗄️")
+                    .build();
+
+            jeeCategory = Category.builder()
+                    .name("JEE Mains")
+                    .description("Physics, Chemistry, and Mathematics practice problems and mock tests for JEE Main aspirants.")
+                    .icon("🎯")
+                    .build();
+
+            mhcetCategory = Category.builder()
+                    .name("MHCET")
+                    .description("Maharashtra Common Entrance Test mock exams covering Physics, Chemistry, and Mathematics.")
+                    .icon("📐")
+                    .build();
+
+            categoryRepository.saveAll(List.of(javaCategory, reactCategory, dbCategory, jeeCategory, mhcetCategory));
+
+            // 3. Common Tests (Generic for all users)
+            seedJavaTest(javaCategory);
+            seedReactTest(reactCategory);
+            seedDatabaseTest(dbCategory);
+            seedJeeMainTest(jeeCategory);
+            seedMhcetTest(mhcetCategory);
+        } else {
+            javaCategory = categoryRepository.findByNameIgnoreCase("Java & Spring Boot").orElse(null);
+            reactCategory = categoryRepository.findByNameIgnoreCase("React & Frontend").orElse(null);
+            dbCategory = categoryRepository.findByNameIgnoreCase("Databases & SQL").orElse(null);
+            jeeCategory = categoryRepository.findByNameIgnoreCase("JEE Mains").orElse(null);
+            mhcetCategory = categoryRepository.findByNameIgnoreCase("MHCET").orElse(null);
         }
 
-        log.info("Seeding initial mock test data...");
+        // 2. Seed Default Accounts & Assigned Tests if users not yet created
+        if (userRepository.count() == 0) {
+            log.info("Seeding initial user accounts and assigned tests...");
+            User admin = User.builder()
+                    .fullName("Admin Instructor")
+                    .email("admin@exam.com")
+                    .password(passwordEncoder.encode("Admin@123"))
+                    .role(Role.ROLE_ADMIN)
+                    .enabled(true)
+                    .build();
 
-        // 1. Categories
-        Category javaCategory = Category.builder()
-                .name("Java & Spring Boot")
-                .description("Core Java, concurrency, Spring Framework, Spring Boot 3, and microservices architecture.")
-                .icon("☕")
-                .build();
+            User alice = User.builder()
+                    .fullName("Alice Johnson")
+                    .email("alice@exam.com")
+                    .password(passwordEncoder.encode("Alice@123"))
+                    .role(Role.ROLE_USER)
+                    .enabled(true)
+                    .build();
 
-        Category reactCategory = Category.builder()
-                .name("React & Frontend")
-                .description("Modern React, hooks, state patterns, JavaScript ES6+, and responsive UI development.")
-                .icon("⚛️")
-                .build();
+            User bob = User.builder()
+                    .fullName("Bob Smith")
+                    .email("bob@exam.com")
+                    .password(passwordEncoder.encode("Bob@123"))
+                    .role(Role.ROLE_USER)
+                    .enabled(true)
+                    .build();
 
-        Category dbCategory = Category.builder()
-                .name("Databases & SQL")
-                .description("Relational data modeling, indexing, SQL queries, transactions, and ACID principles.")
-                .icon("🗄️")
-                .build();
+            userRepository.saveAll(List.of(admin, alice, bob));
+        }
 
-        Category jeeCategory = Category.builder()
-                .name("JEE Mains")
-                .description("Physics, Chemistry, and Mathematics practice problems and mock tests for JEE Main aspirants.")
-                .icon("🎯")
-                .build();
+        // 4. Assigned Tests (Targeted to specific students) if not already created
+        if (testRepository.findByAccessType(TestAccessType.ASSIGNED).isEmpty()) {
+            User alice = userRepository.findByEmailIgnoreCase("alice@exam.com").orElse(null);
+            User bob = userRepository.findByEmailIgnoreCase("bob@exam.com").orElse(null);
+            if (alice != null && javaCategory != null) {
+                seedAssignedAliceTest(javaCategory, alice);
+            }
+            if (bob != null && dbCategory != null) {
+                seedAssignedBobTest(dbCategory, bob);
+            }
+        }
 
-        Category mhcetCategory = Category.builder()
-                .name("MHCET")
-                .description("Maharashtra Common Entrance Test mock exams covering Physics, Chemistry, and Mathematics.")
-                .icon("📐")
-                .build();
-
-        categoryRepository.saveAll(List.of(javaCategory, reactCategory, dbCategory, jeeCategory, mhcetCategory));
-
-        // 2. Tests & Questions
-        seedJavaTest(javaCategory);
-        seedReactTest(reactCategory);
-        seedDatabaseTest(dbCategory);
-        seedJeeMainTest(jeeCategory);
-        seedMhcetTest(mhcetCategory);
-
-        log.info("Mock test data seeded successfully!");
+        log.info("Mock test data and user accounts seeded successfully!");
     }
 
     private void seedJavaTest(Category category) {
@@ -537,6 +590,92 @@ public class DataLoader implements CommandLineRunner {
         }
 
         test.getQuestions().add(q);
+    }
+
+    private void seedAssignedAliceTest(Category category, User alice) {
+        MockTest test = MockTest.builder()
+                .category(category)
+                .title("Spring Cloud & Distributed Systems (Batch A)")
+                .description("Specialized batch assessment covering Circuit Breakers, API Gateways, and Distributed Tracing. Assigned exclusively to selected candidates.")
+                .durationMinutes(15)
+                .totalMarks(4)
+                .passingMarks(2)
+                .negativeMarks(0.5)
+                .difficulty("HARD")
+                .isActive(true)
+                .accessType(TestAccessType.ASSIGNED)
+                .assignedUsers(new java.util.HashSet<>(java.util.List.of(alice)))
+                .questions(new ArrayList<>())
+                .build();
+
+        addQuestion(test,
+                "In a microservices architecture, which Resilience4j component helps prevent cascading failures when a downstream dependency is failing?",
+                "The Circuit Breaker pattern opens to fail-fast and prevent recurring timeouts from overloading downstream services.",
+                2, 1,
+                List.of(
+                        new OptionData("A", "RateLimiter", false),
+                        new OptionData("B", "CircuitBreaker", true),
+                        new OptionData("C", "Retry with infinite backoff", false),
+                        new OptionData("D", "Bulkhead only", false)
+                )
+        );
+
+        addQuestion(test,
+                "What is the primary function of a distributed tracing ID (TraceId / SpanId) in Spring Cloud Micrometer Tracing?",
+                "TraceId correlates log statements and spans across asynchronous service calls end-to-end.",
+                2, 2,
+                List.of(
+                        new OptionData("A", "Encrypting payload data in transit", false),
+                        new OptionData("B", "Correlating asynchronous requests across different microservices", true),
+                        new OptionData("C", "Managing database connection pooling", false),
+                        new OptionData("D", "Authenticating JWT tokens", false)
+                )
+        );
+
+        testRepository.save(test);
+    }
+
+    private void seedAssignedBobTest(Category category, User bob) {
+        MockTest test = MockTest.builder()
+                .category(category)
+                .title("PostgreSQL Query Optimization & EXPLAIN Deep Dive")
+                .description("Targeted performance tuning exam focusing on query execution plans, indexing strategies, and buffer usage.")
+                .durationMinutes(15)
+                .totalMarks(4)
+                .passingMarks(2)
+                .negativeMarks(0.5)
+                .difficulty("HARD")
+                .isActive(true)
+                .accessType(TestAccessType.ASSIGNED)
+                .assignedUsers(new java.util.HashSet<>(java.util.List.of(bob)))
+                .questions(new ArrayList<>())
+                .build();
+
+        addQuestion(test,
+                "In PostgreSQL, which EXPLAIN option actually executes the query to return real runtimes and row counts?",
+                "EXPLAIN ANALYZE actually executes the query, recording actual row counts and execution timing for each node.",
+                2, 1,
+                List.of(
+                        new OptionData("A", "EXPLAIN VERBOSE", false),
+                        new OptionData("B", "EXPLAIN (COSTS FALSE)", false),
+                        new OptionData("C", "EXPLAIN ANALYZE", true),
+                        new OptionData("D", "EXPLAIN FORMAT JSON", false)
+                )
+        );
+
+        addQuestion(test,
+                "Which index type in PostgreSQL is best suited for full-text search and array containment queries?",
+                "GIN (Generalized Inverted Index) is optimized for composite values such as arrays, jsonb, and tsvector.",
+                2, 2,
+                List.of(
+                        new OptionData("A", "Standard B-Tree Index", false),
+                        new OptionData("B", "GIN (Generalized Inverted Index)", true),
+                        new OptionData("C", "Hash Index", false),
+                        new OptionData("D", "BRIN Index", false)
+                )
+        );
+
+        testRepository.save(test);
     }
 
     private record OptionData(String key, String text, boolean isCorrect) {}

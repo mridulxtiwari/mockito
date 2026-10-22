@@ -25,6 +25,10 @@ public class TestAttempt {
     @JoinColumn(name = "test_id", nullable = false)
     private MockTest test;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
     @Column(nullable = false)
     private String candidateName;
 

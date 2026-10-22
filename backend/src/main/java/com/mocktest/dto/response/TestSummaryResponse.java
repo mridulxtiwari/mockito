@@ -1,5 +1,7 @@
 package com.mocktest.dto.response;
 
+import com.mocktest.entity.TestAccessType;
+
 public record TestSummaryResponse(
         Long id,
         Long categoryId,
@@ -11,5 +13,8 @@ public record TestSummaryResponse(
         Integer passingMarks,
         Double negativeMarks,
         String difficulty,
-        int totalQuestions
+        int totalQuestions,
+        TestAccessType accessType,
+        boolean isAssignedToCurrentUser,
+        int assignedUserCount
 ) {}

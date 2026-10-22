@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { testApi } from '../api/testApi';
+import { useAuth } from '../context/AuthContext';
 import ExamTimer from '../components/ExamTimer';
 import QuestionCard from '../components/QuestionCard';
 import QuestionPalette from '../components/QuestionPalette';
 import SubmitConfirmModal from '../components/SubmitConfirmModal';
 
 export default function ExamPage({ testId, onFinishExam, onCancelExam }) {
+  const { user } = useAuth();
   const [examPaper, setExamPaper] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -15,7 +17,7 @@ export default function ExamPage({ testId, onFinishExam, onCancelExam }) {
   const [flaggedIds, setFlaggedIds] = useState(new Set());
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
-  const [candidateName, setCandidateName] = useState('');
+  const [candidateName, setCandidateName] = useState(user?.fullName || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMobilePaletteOpen, setIsMobilePaletteOpen] = useState(false);
 
@@ -103,7 +105,8 @@ export default function ExamPage({ testId, onFinishExam, onCancelExam }) {
 
       const payload = {
         testId: examPaper.testId,
-        candidateName: candidateName.trim() || 'Guest Candidate',
+        candidateName: candidateName.trim() || user?.fullName || 'Candidate',
+        candidateEmail: user?.email || undefined,
         timeTakenSeconds: Math.max(0, timeTaken),
         timedOut,
         answers,
@@ -120,7 +123,7 @@ export default function ExamPage({ testId, onFinishExam, onCancelExam }) {
         setIsSubmitting(false);
       }
     },
-    [examPaper, secondsLeft, candidateName, answers, storageKey, onFinishExam]
+    [examPaper, secondsLeft, candidateName, user, answers, storageKey, onFinishExam]
   );
 
   // 5. Timer expired handler
