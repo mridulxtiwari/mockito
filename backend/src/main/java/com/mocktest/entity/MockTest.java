@@ -49,7 +49,7 @@ public class MockTest {
     private String difficulty; // EASY, MEDIUM, HARD
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "access_type", length = 32)
     @Builder.Default
     private TestAccessType accessType = TestAccessType.COMMON;
 
