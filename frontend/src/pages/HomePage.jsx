@@ -1,13 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { testApi } from '../api/testApi';
+import { useAuth } from '../context/AuthContext';
+import TestCard from '../components/TestCard';
+import ManageEnrollmentModal from '../components/ManageEnrollmentModal';
 
-export default function HomePage({ onStartTest, categories, onRefreshCategories }) {
+export default function HomePage({
+  onStartTest,
+  categories,
+  onRefreshCategories,
+  onOpenAuth,
+  onOpenCreate,
+  onNavigateAdmin,
+}) {
+  const { user, isAuthenticated, isAdmin } = useAuth();
+
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [tests, setTests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [deletingId, setDeletingId] = useState(null);
+  const [candidateCount, setCandidateCount] = useState(0);
+  const [managingEnrollmentTest, setManagingEnrollmentTest] = useState(null);
 
-  const loadTests = async (catId) => {
+  const loadTests = useCallback(async (catId) => {
     setLoading(true);
     try {
       const data = await testApi.getTests(catId);
@@ -17,28 +32,128 @@ export default function HomePage({ onStartTest, categories, onRefreshCategories 
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
+  // Reload tests whenever category or user authentication state changes
   useEffect(() => {
     loadTests(selectedCategory);
-  }, [selectedCategory]);
+  }, [selectedCategory, user, loadTests]);
 
-  const filteredTests = tests.filter((t) =>
-    t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.categoryName?.toLowerCase().includes(searchQuery.toLowerCase())
+  // Load candidate count for admin dashboard metrics
+  useEffect(() => {
+    if (isAdmin) {
+      testApi
+        .getUsers()
+        .then((users) => {
+          const students = (users || []).filter(
+            (u) => u.role !== 'ROLE_ADMIN' && u.role !== 'ADMIN'
+          );
+          setCandidateCount(students.length);
+        })
+        .catch(() => {});
+    }
+  }, [isAdmin]);
+
+  const handleDeleteTest = async (testId, title) => {
+    if (!window.confirm(`Are you sure you want to delete "${title}"?`)) return;
+    setDeletingId(testId);
+    try {
+      await testApi.deleteTest(testId);
+      setTests((prev) => prev.filter((t) => t.id !== testId));
+      if (onRefreshCategories) onRefreshCategories();
+    } catch (err) {
+      alert('Failed to delete test: ' + err.message);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // Search filtering
+  const filteredTests = tests.filter(
+    (t) =>
+      t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.categoryName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div>
-      <section className="hero">
-        <div className="hero-tag">✨ REAL-TIME ONLINE EXAMINATION ENGINE</div>
-        <h1>Master Your Technical & Aptitude Tests</h1>
-        <p>
-          Timed mock examinations with live countdowns, question navigation palettes, instant evaluation, and in-depth solution reviews.
-        </p>
+    <div className="home-page-container">
+      {/* 1. ROLE-BASED HERO / HEADER SECTION */}
+      {isAdmin ? (
+        /* ADMIN DASHBOARD HEADER */
+        <section className="admin-hero glass">
+          <div className="admin-hero-content">
+            <div className="admin-hero-left">
+              <div className="admin-badge-pill">
+                <span>🛡️</span>
+                <span>INSTRUCTOR CONTROL CENTER</span>
+              </div>
+              <h1 className="admin-hero-title">Assessment Management</h1>
+              <p className="admin-hero-subtitle">
+                Create and publish mock tests, manage candidate enrollment, and monitor assessments.
+              </p>
+            </div>
+            <div className="admin-hero-actions">
+              <button
+                id="btn-goto-admin-console"
+                type="button"
+                className="btn btn-outline btn-create-test-hero"
+                onClick={onNavigateAdmin}
+                title="Open Comprehensive Admin Command Center"
+              >
+                <span>🛡️</span>
+                <span>Open Admin Console</span>
+              </button>
+              <button
+                id="btn-create-test-hero"
+                type="button"
+                className="btn btn-primary btn-create-test-hero"
+                onClick={onOpenCreate}
+              >
+                <span>➕</span>
+                <span>Create Mock Test</span>
+              </button>
+            </div>
+          </div>
 
-        {/* Category Filters */}
+          {/* Platform KPI Metrics */}
+          <div className="admin-kpi-grid">
+            <div className="kpi-card">
+              <div className="kpi-icon">📚</div>
+              <div className="kpi-data">
+                <span className="kpi-value">{tests.length}</span>
+                <span className="kpi-label">Active Mock Tests</span>
+              </div>
+            </div>
+            <div className="kpi-card">
+              <div className="kpi-icon">🏷️</div>
+              <div className="kpi-data">
+                <span className="kpi-value">{categories.length}</span>
+                <span className="kpi-label">Test Categories</span>
+              </div>
+            </div>
+            <div className="kpi-card">
+              <div className="kpi-icon">👥</div>
+              <div className="kpi-data">
+                <span className="kpi-value">{candidateCount}</span>
+                <span className="kpi-label">Registered Students</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : (
+        /* STUDENT & GUEST CANDIDATE HERO */
+        <section className="hero">
+          <div className="hero-tag">✨ REAL-TIME ONLINE EXAMINATION ENGINE</div>
+          <h1>Master Your Technical & Aptitude Tests</h1>
+          <p>
+            Timed mock examinations with live countdowns, question navigation palettes, instant evaluation, and in-depth solution reviews.
+          </p>
+        </section>
+      )}
+
+      {/* 2. CATEGORY FILTERS & SEARCH */}
+      <section className="filter-controls-section">
         <div className="category-chips">
           <button
             className={`chip ${selectedCategory === null ? 'active' : ''}`}
@@ -59,93 +174,94 @@ export default function HomePage({ onStartTest, categories, onRefreshCategories 
         </div>
 
         {/* Search Bar */}
-        <div style={{ maxWidth: '480px', margin: '0 auto 20px' }}>
+        <div className="search-bar-wrap">
           <input
             type="text"
+            className="search-input"
             placeholder="🔍 Search tests by topic, framework, or title..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '12px 18px',
-              borderRadius: 'var(--radius-full)',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid var(--border-color)',
-              color: '#fff',
-              fontSize: '0.95rem',
-              outline: 'none',
-              backdropFilter: 'blur(10px)',
-            }}
           />
+          {searchQuery && (
+            <button
+              type="button"
+              className="search-clear-btn"
+              onClick={() => setSearchQuery('')}
+            >
+              ✕
+            </button>
+          )}
         </div>
+
+        {/* Guest Warning Banner if unauthenticated */}
+        {!isAuthenticated && (
+          <div className="guest-info-banner">
+            <div>
+              <span>💡 Viewing available mock tests. </span>
+              <strong>Sign in</strong> to access your tests and track your assessment scorecard.
+            </div>
+            <button
+              id="guest-signin-btn"
+              className="btn btn-outline btn-guest-signin"
+              onClick={onOpenAuth}
+            >
+              Sign In
+            </button>
+          </div>
+        )}
       </section>
 
-      {/* Tests Grid */}
+      {/* 3. TESTS GRID */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-muted)' }}>
-          <div style={{ fontSize: '1.5rem', marginBottom: '12px' }}>⏳</div>
-          <p>Loading available mock tests...</p>
+        <div className="loading-grid">
+          {[1, 2, 3, 4].map((n) => (
+            <div key={n} className="skeleton-card glass" />
+          ))}
         </div>
       ) : filteredTests.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px' }}>
-          <p style={{ fontSize: '1.2rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-            No mock tests found matching your criteria.
-          </p>
+        <div className="empty-tests-state glass">
+          <div className="empty-icon">🔍</div>
+          <h3>No mock tests found</h3>
+          <p>Try adjusting your search criteria or selecting a different category.</p>
+          {(searchQuery || selectedCategory !== null) && (
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedCategory(null);
+              }}
+            >
+              Reset Filters
+            </button>
+          )}
         </div>
       ) : (
         <div className="test-grid">
-          {filteredTests.map((test) => {
-            const diffClass =
-              test.difficulty === 'EASY'
-                ? 'badge-easy'
-                : test.difficulty === 'HARD'
-                ? 'badge-hard'
-                : 'badge-medium';
-
-            return (
-              <div key={test.id} className="glass test-card">
-                <div>
-                  <div className="test-card-top">
-                    <span style={{ fontSize: '0.85rem', color: '#818cf8', fontWeight: 600 }}>
-                      {test.categoryName}
-                    </span>
-                    <span className={`test-badge ${diffClass}`}>
-                      {test.difficulty || 'MEDIUM'}
-                    </span>
-                  </div>
-
-                  <h3>{test.title}</h3>
-                  <p>{test.description || 'Standard technical assessment test.'}</p>
-                </div>
-
-                <div>
-                  <div className="test-meta">
-                    <div className="meta-item">
-                      <span>⏱️</span>
-                      <span><strong>{test.durationMinutes}</strong> mins</span>
-                    </div>
-                    <div className="meta-item">
-                      <span>❓</span>
-                      <span><strong>{test.totalQuestions}</strong> questions</span>
-                    </div>
-                    <div className="meta-item">
-                      <span>🎯</span>
-                      <span>Pass: <strong>{test.passingMarks}/{test.totalMarks}</strong></span>
-                    </div>
-                  </div>
-
-                  <button
-                    className="btn btn-primary"
-                    style={{ width: '100%' }}
-                    onClick={() => onStartTest(test.id)}
-                  >
-                    Start Mock Test 🚀
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+          {filteredTests.map((test) => (
+            <TestCard
+              key={test.id}
+              test={test}
+              isAdmin={isAdmin}
+              onStartTest={onStartTest}
+              onDeleteTest={handleDeleteTest}
+              onManageEnrollment={(t) => setManagingEnrollmentTest(t)}
+              isDeleting={deletingId === test.id}
+            />
+          ))}
         </div>
+      )}
+
+      {/* 4. MANAGE ENROLLMENT MODAL (ADMIN ONLY) */}
+      {managingEnrollmentTest && (
+        <ManageEnrollmentModal
+          test={managingEnrollmentTest}
+          onClose={() => setManagingEnrollmentTest(null)}
+          onUpdated={() => {
+            loadTests(selectedCategory);
+            if (onRefreshCategories) onRefreshCategories();
+          }}
+        />
       )}
     </div>
   );

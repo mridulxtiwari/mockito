@@ -48,6 +48,20 @@ public class MockTest {
 
     private String difficulty; // EASY, MEDIUM, HARD
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "access_type", length = 32)
+    @Builder.Default
+    private TestAccessType accessType = TestAccessType.COMMON;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "test_assigned_users",
+            joinColumns = @JoinColumn(name = "test_id"),
+            inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    @Builder.Default
+    private java.util.Set<User> assignedUsers = new java.util.HashSet<>();
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 
